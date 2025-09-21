@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "peptide-backend"
+version = "0.1.0"
+description = "FastAPI backend for Peptide & Supplement Protocol Manager"
+authors = [{name = "Peptide App", email = "dev@peptide.app"}]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.111.0",
+  "uvicorn[standard]>=0.30.0",
+  "pydantic>=2.7.0",
+  "pydantic-settings>=2.2.1",
+  "python-dotenv>=1.0.1",
+  "supabase>=2.6.0",
+  "httpx>=0.27.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "ruff>=0.6.0",
+  "pytest>=8.2.0",
+  "pytest-asyncio>=0.23.6",
+  "mypy>=1.11.0",
+  "types-requests",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+  "E","F","I","UP","B","W","N"
+]
+ignore = ["E203","E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+

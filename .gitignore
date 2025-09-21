@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+.env.*
+# Node/Expo
+node_modules/
+.expo/
+dist/
+# Mac
+.DS_Store
