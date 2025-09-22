@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     SUPABASE_URL: str | None = None
     SUPABASE_ANON_KEY: str | None = None
     SUPABASE_SERVICE_ROLE_KEY: str | None = None
+    OPENAI_API_KEY: str | None = None
+    JWT_SECRET_KEY: str | None = None
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
