@@ -1,3 +1,4 @@
+// Simple email+password sign-in using Supabase.
 import React, { useState } from "react";
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from "react-native";
 import { useNavigation } from "@react-navigation/native";
@@ -12,13 +13,18 @@ export default function LoginScreen() {
 
   async function onLogin() {
     try {
+      // 1) Start loading state
       setLoading(true);
+      // 2) Ask Supabase to sign in using email+password
       const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
       if (error) throw error;
+      // 3) On success, go to the main app
       navigation.navigate("MainTabs", { screen: "Home" });
     } catch (err: any) {
+      // 4) Show a friendly error message
       Alert.alert("Login failed", err?.message ?? "Unknown error");
     } finally {
+      // 5) Always clear loading state
       setLoading(false);
     }
   }

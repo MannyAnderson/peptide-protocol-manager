@@ -1,3 +1,4 @@
+// Simple email+password sign-up using Supabase.
 import React, { useState } from "react";
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from "react-native";
 import { useNavigation } from "@react-navigation/native";
@@ -12,14 +13,20 @@ export default function SignupScreen() {
 
   async function onSignup() {
     try {
+      // 1) Start loading state
       setLoading(true);
+      // 2) Create a new account with Supabase auth
       const { error } = await supabase.auth.signUp({ email: email.trim(), password });
       if (error) throw error;
+      // 3) Prompt user to confirm their email
       Alert.alert("Check your email", "We sent you a confirmation link.");
+      // 4) Navigate to the main app
       navigation.navigate("MainTabs", { screen: "Home" });
     } catch (err: any) {
+      // 5) Show a friendly error
       Alert.alert("Signup failed", err?.message ?? "Unknown error");
     } finally {
+      // 6) Clear loading state
       setLoading(false);
     }
   }

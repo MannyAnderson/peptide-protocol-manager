@@ -1,3 +1,8 @@
+"""Data export endpoints.
+
+Exports the user's daily tracking data to CSV over a date range. The client
+must authenticate, and we pull only rows for that user.
+"""
 from datetime import datetime, timedelta
 from io import StringIO
 import csv
@@ -16,6 +21,11 @@ router = APIRouter(prefix="/export", tags=["export"])
 async def resolve_user_id(
     authorization: Optional[str] = Header(default=None), token: Optional[str] = Query(default=None)
 ) -> str:
+    """Resolve a user id from either the Authorization header or ``?token=``.
+
+    We support ``?token=`` for convenience on mobile's "open URL" flows where
+    adding custom headers can be tricky.
+    """
     supabase = get_supabase()
     if supabase is None:
         raise HTTPException(status_code=500, detail="Supabase not configured")
@@ -44,11 +54,12 @@ async def export_csv(
     start: Optional[str] = Query(default=None, description="ISO date or datetime"),
     end: Optional[str] = Query(default=None, description="ISO date or datetime"),
 ):
+    # 1) Get Supabase client
     supabase = get_supabase()
     if supabase is None:
         raise HTTPException(status_code=500, detail="Supabase not configured")
 
-    # Parse date range (default last 30d)
+    # 2) Parse date range (default last 30 days)
     try:
         if start:
             start_dt = datetime.fromisoformat(start)
@@ -61,7 +72,7 @@ async def export_csv(
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid start/end format. Use ISO 8601.")
 
-    # Query daily_tracking rows
+    # 3) Query user's daily_tracking rows within the date window
     res = (
         supabase.table("daily_tracking")
         .select(
@@ -77,7 +88,7 @@ async def export_csv(
         raise HTTPException(status_code=500, detail=f"Failed to read tracking: {res.error}")
     rows: List[Dict[str, Any]] = res.data or []  # type: ignore[attr-defined]
 
-    # Prepare CSV
+    # 4) Prepare CSV from the rows
     headers = [
         "created_at",
         "weight_lbs",
@@ -100,8 +111,10 @@ async def export_csv(
     for r in rows:
         writer.writerow({k: r.get(k, "") for k in headers})
 
+    # 5) Name the file using the date window
     filename = f"daily_tracking_{start_dt.strftime('%Y%m%d')}_{end_dt.strftime('%Y%m%d')}.csv"
     buf.seek(0)
+    # 6) Stream the CSV back to the client as a file download
     return StreamingResponse(
         iter([buf.getvalue()]),
         media_type="text/csv",

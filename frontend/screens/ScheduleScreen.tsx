@@ -1,3 +1,4 @@
+// Example schedule screen. "Add to Calendar" uses Expo Calendar API.
 import React, { useMemo } from "react";
 import { View, Text, StyleSheet, SectionList, TouchableOpacity, Alert } from "react-native";
 import { addDoseEvents } from "../src/utils/calendar";
@@ -74,6 +75,7 @@ export default function ScheduleScreen() {
           <TouchableOpacity
             style={[styles.addButton, { backgroundColor: "#2563eb", borderColor: "#1d4ed8" }]}
             onPress={async () => {
+              // 1) Helper: convert "HH:MM AM/PM" into a Date today
               const now = new Date();
               const toDate = (time: string) => {
                 const [hm, ampm] = time.split(" ");
@@ -84,13 +86,16 @@ export default function ScheduleScreen() {
                 d.setHours(hour, m || 0, 0, 0);
                 return d;
               };
+              // 2) Build calendar event payloads for today's items
               const events = sections[0].data.map((it) => ({
                 title: `${it.peptide} ${it.dose_mg} mg`,
                 start: toDate(it.time),
                 end: new Date(toDate(it.time).getTime() + 30 * 60 * 1000),
                 notes: "Peptide dose",
               }));
+              // 3) Create events via Expo Calendar
               const created = await addDoseEvents(events);
+              // 4) Notify the user
               if (created > 0) Alert.alert("Added to Calendar", `${created} event(s) created.`);
             }}
             activeOpacity={0.8}

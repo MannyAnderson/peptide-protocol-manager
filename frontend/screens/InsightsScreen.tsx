@@ -1,3 +1,4 @@
+// Fetches "AI insights" from the backend for the signed-in user.
 import React, { useCallback, useEffect, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, ActivityIndicator } from "react-native";
 import { supabase } from "../src/utils/supabase";
@@ -12,12 +13,16 @@ export default function InsightsScreen() {
 
   const fetchInsights = useCallback(async () => {
     try {
+      // 1) Start loading and clear previous error
       setLoading(true);
       setError(null);
+      // 2) Read the current auth session and extract the JWT token
       const { data } = await supabase.auth.getSession();
       const token = data.session?.access_token;
+      // 3) Call the backend endpoint with the token for authorization
       const res = await apiPost("/insights/generate", {}, token);
       let items: Insight[] = [];
+      // 4) Normalize response shape into a simple array of tips
       if (Array.isArray(res)) {
         items = res;
       } else if (res?.tips && Array.isArray(res.tips)) {
@@ -27,10 +32,13 @@ export default function InsightsScreen() {
       } else if (typeof res === "object") {
         items = Object.values(res);
       }
+      // 5) Save to local state
       setTips(items);
     } catch (err: any) {
+      // 6) Show a friendly error
       setError(err?.message ?? "Failed to load insights");
     } finally {
+      // 7) Clear loading indicator
       setLoading(false);
     }
   }, []);

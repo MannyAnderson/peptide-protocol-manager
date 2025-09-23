@@ -1,3 +1,4 @@
+// Simple CRUD-style list for peptides using Supabase.
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Modal } from "react-native";
 import { supabase } from "../src/utils/supabase";
@@ -29,17 +30,21 @@ export default function InventoryScreen() {
 
   async function loadPeptides() {
     try {
+      // 1) Start loading and query the table
       setLoading(true);
       const { data, error } = await supabase
         .from("peptides")
         .select("id,name,units_remaining,expires_on")
         .order("expires_on", { ascending: true });
       if (error) throw error;
+      // 2) Save the results into state
       setPeptides(data ?? []);
     } catch (err) {
       // eslint-disable-next-line no-console
+      // 3) Print a warning in dev; production apps could show a toast
       console.warn("Failed to load peptides", err);
     } finally {
+      // 4) Stop loading indicator
       setLoading(false);
     }
   }
@@ -61,16 +66,20 @@ export default function InventoryScreen() {
 
   async function submitNew() {
     try {
+      // 1) Prepare the payload with sanitized/parsed values
       const units = parseNum(unitsRemaining);
       const iso = expiresOn ? new Date(expiresOn).toISOString() : new Date(Date.now() + 60 * 24 * 3600 * 1000).toISOString();
       const row = { name: name.trim() || "Unnamed Peptide", units_remaining: units, expires_on: iso };
+      // 2) Insert the row into Supabase
       const { error } = await supabase.from("peptides").insert([row]);
       if (error) throw error;
+      // 3) Refresh list and reset the form
       await loadPeptides();
       resetForm();
       setShowModal(false);
     } catch (err: any) {
       // eslint-disable-next-line no-console
+      // 4) Log the error
       console.error("Failed to add peptide:", err?.message ?? err);
     }
   }

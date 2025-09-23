@@ -1,3 +1,4 @@
+// Basic profile and settings; includes CSV export shortcut.
 import React, { useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Linking } from "react-native";
 import { supabase } from "../src/utils/supabase";
@@ -31,18 +32,21 @@ export default function ProfileScreen() {
           style={styles.listItem}
           onPress={async () => {
             try {
+              // 1) Retrieve the current session token
               const { data } = await supabase.auth.getSession();
               const token = data.session?.access_token;
               if (!token) {
                 Alert.alert("Sign in required", "Please sign in to export data.");
                 return;
               }
+              // 2) Build a one-month window and construct the download URL
               const start = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
               const end = new Date().toISOString();
               const url = `${API_BASE}/api/v1/export/csv?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
-              // On mobile, opening the URL with bearer may not attach headers, so append token as query param as well
+              // 3) On mobile, pass token in the query string (headers may be dropped)
               const link = `${url}&token=${encodeURIComponent(token)}`;
               // eslint-disable-next-line no-undef
+              // 4) Open the link in the system browser to trigger file download
               Linking.openURL?.(link);
             } catch (err: any) {
               Alert.alert("Export failed", err?.message ?? "Unknown error");

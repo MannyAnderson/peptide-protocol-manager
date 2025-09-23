@@ -1,3 +1,4 @@
+// App entry: sets up navigation and decides whether to show auth or main tabs.
 import * as React from "react";
 import "react-native-gesture-handler";
 import { NavigationContainer } from "@react-navigation/native";
@@ -19,9 +20,11 @@ import InsightsScreen from "./screens/InsightsScreen";
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
+// Bottom tab navigator with the main screens
 function MainTabs() {
   return (
     <Tab.Navigator screenOptions={{ headerShown: true }}>
+      {/* 1) Each Tab.Screen registers a tab and its component */}
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Insights" component={InsightsScreen} />
       <Tab.Screen name="Daily" component={DailyTrackingScreen} />
@@ -37,14 +40,18 @@ export default function App() {
   const [initialRoute, setInitialRoute] = React.useState<"Login" | "MainTabs">("Login");
 
   React.useEffect(() => {
+    // Check if the user is already signed in
     supabase.auth.getSession().then(({ data }) => {
+      // If a session exists, navigate straight to the main tabs
       if (data.session) setInitialRoute("MainTabs");
     });
+    // Ask for notification permission and schedule daily reminders
     ensureNotificationsScheduled();
   }, []);
 
   return (
     <NavigationContainer>
+      {/* 2) Stack contains Login/Signup and the tab navigator */}
       <Stack.Navigator initialRouteName={initialRoute} screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Signup" component={SignupScreen} />

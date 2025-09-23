@@ -1,3 +1,4 @@
+// Read-only vitals summary using mock data for now.
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
 

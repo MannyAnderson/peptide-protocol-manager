@@ -1,3 +1,4 @@
+// Home screen showing a quick overview and shortcuts.
 import React from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
 

@@ -1,3 +1,9 @@
+"""Insights endpoints powered by recent tracking data and optional OpenAI.
+
+The ``/insights/generate`` endpoint summarizes the last 7 days of user
+tracking data and optionally asks OpenAI to produce short, actionable tips.
+If ``OPENAI_API_KEY`` is not set, we return a few helpful default tips.
+"""
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
 
@@ -24,8 +30,7 @@ async def get_user_id(authorization: str | None = Header(default=None)) -> str:
     supabase = get_supabase()
     if supabase is None:
         raise HTTPException(status_code=500, detail="Supabase not configured")
-    # Use auth v2 get_user via REST: not available here directly; trust frontend-provided token by decoding at Supabase
-    # Workaround: call /auth/v1/user endpoint via supabase-py underlying client
+    # Ask Supabase to decode the JWT and give us the user record
     try:
         # supabase._auth is the auth client; use get_user(token) if present
         user = supabase.auth.get_user(token).user  # type: ignore[attr-defined]
@@ -38,13 +43,15 @@ async def get_user_id(authorization: str | None = Header(default=None)) -> str:
 
 @router.post("/generate")
 async def generate_insights(user_id: str = Depends(require_user_id)) -> Dict[str, Any]:
+    # 1) Read config and get a Supabase client
     settings = get_settings()
     supabase = get_supabase()
     if supabase is None:
         raise HTTPException(status_code=500, detail="Supabase not configured")
 
+    # 2) Define the time window (last 7 days) and fetch tracking rows
     since = (datetime.utcnow() - timedelta(days=7)).isoformat()
-    # Fetch last 7 days daily_tracking for this user
+    # Fetch last 7 days of daily_tracking for this user
     res = supabase.table("daily_tracking").select(
         "created_at, weight_lbs, waist_in, bp_am, bp_pm, body_fat_pct, muscle_mass_pct, resting_hr_bpm, energy, appetite, performance"
     ).gte("created_at", since).eq("user_id", user_id).order("created_at", desc=True).execute()
@@ -52,7 +59,7 @@ async def generate_insights(user_id: str = Depends(require_user_id)) -> Dict[str
         raise HTTPException(status_code=500, detail=f"Failed to read tracking: {res.error}")
     rows: List[Dict[str, Any]] = res.data or []  # type: ignore[attr-defined]
 
-    # Summarize metrics
+    # 3) Summarize metrics into simple averages for the prompt
     def avg(key: str) -> float | None:
         vals = [r[key] for r in rows if r.get(key) is not None]
         if not vals:
@@ -72,13 +79,14 @@ async def generate_insights(user_id: str = Depends(require_user_id)) -> Dict[str
         "avg_performance": avg("performance"),
     }
 
-    # Build prompt
+    # 4) Build prompt for the AI model (kept short and specific)
     prompt = (
         "You are a health coach. Based on the user's last 7 days of metrics, provide 3-5 concise, actionable tips.\n"
         f"Summary: {summary}\n"
         "Constraints: return JSON with 'tips': an array of strings, short and specific."
     )
 
+    # 5) If OpenAI is not configured, provide helpful defaults; else call API
     if not settings.OPENAI_API_KEY or OpenAI is None:
         # Fallback: mock insights
         tips = [
@@ -89,6 +97,7 @@ async def generate_insights(user_id: str = Depends(require_user_id)) -> Dict[str
     else:
         client = OpenAI(api_key=settings.OPENAI_API_KEY)
         try:
+            # Ask the model for JSON-only output using the summary
             completion = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
@@ -107,13 +116,14 @@ async def generate_insights(user_id: str = Depends(require_user_id)) -> Dict[str
         except Exception as exc:  # noqa: BLE001
             tips = [f"Insight generation failed: {exc}"]
 
-    # Insert into insights table
+    # 6) Best effort: store the result so it can be viewed later
     insert_row = {"user_id": user_id, "summary": summary, "tips": tips}
     ins = supabase.table("insights").insert(insert_row).execute()
     if getattr(ins, "error", None):
         # Non-fatal: still return tips
         pass
 
+    # 7) Return computed tips and summary
     return {"tips": tips, "summary": summary}
 
 

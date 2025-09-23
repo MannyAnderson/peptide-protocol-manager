@@ -69,6 +69,7 @@ export default function DailyTrackingScreen() {
   const peptideOptions = useMemo(() => ["None", ...peptides.map((p) => p.name)], [peptides]);
 
   useEffect(() => {
+    // 1) Load peptide options for the dropdowns
     let isMounted = true;
     (async () => {
       const { data, error } = await supabase
@@ -82,6 +83,7 @@ export default function DailyTrackingScreen() {
       }
       if (isMounted && data) setPeptides(data);
     })();
+    // 2) Cleanup flag so we don't set state after unmount
     return () => {
       isMounted = false;
     };
@@ -114,12 +116,13 @@ export default function DailyTrackingScreen() {
 
   async function handleSubmit() {
     try {
-      // Resolve selected peptide IDs (index 0 is "None")
+      // 1) Resolve selected peptide IDs (index 0 is "None")
       const resolvePeptideId = (index: number) => (index <= 0 ? null : peptides[index - 1]?.id ?? null);
       const peptide1_id = resolvePeptideId(pepIdx1);
       const peptide2_id = resolvePeptideId(pepIdx2);
       const peptide3_id = resolvePeptideId(pepIdx3);
 
+      // 2) Ensure user is signed in
       const { data: userRes } = await supabase.auth.getUser();
       const userId = userRes.user?.id;
       if (!userId) {
@@ -127,6 +130,7 @@ export default function DailyTrackingScreen() {
         return;
       }
 
+      // 3) Construct the row to insert
       const row = {
         user_id: userId,
         peptide1_id,
@@ -145,9 +149,11 @@ export default function DailyTrackingScreen() {
         notes,
       };
 
+      // 4) Insert the row into Supabase
       const { error } = await supabase.from("daily_tracking").insert([row]);
       if (error) throw error;
 
+      // 5) Notify the user
       Alert.alert("Success", "Daily tracking saved.");
     } catch (err: any) {
       // eslint-disable-next-line no-console
