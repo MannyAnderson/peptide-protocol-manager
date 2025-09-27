@@ -6,32 +6,58 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { supabase } from "./src/utils/supabase";
 import { ensureNotificationsScheduled } from "./src/utils/notifications";
-
+import { View, StyleSheet, Pressable, Text } from "react-native";
 import HomeScreen from "./screens/HomeScreen";
-import ScheduleScreen from "./screens/ScheduleScreen";
 import InventoryScreen from "./screens/InventoryScreen";
-import VitalsScreen from "./screens/VitalsScreen";
-import ProfileScreen from "./screens/ProfileScreen";
-import DailyTrackingScreen from "./screens/DailyTrackingScreen";
 import LoginScreen from "./screens/LoginScreen";
 import SignupScreen from "./screens/SignupScreen";
+import TrackScreen from "./screens/TrackScreen";
 import InsightsScreen from "./screens/InsightsScreen";
+import ProfileSheet from "./screens/ProfileSheet";
+import DailyTrackingSheet from "./screens/DailyTrackingSheet";
+import FAB from "./components/FAB";
+import { colors, spacing } from "./lib/theme";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-// Bottom tab navigator with the main screens
+// Small wrapper to inject header avatar and FAB behaviors
+function HomeTabScreen({ navigation }: any) {
+  React.useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <Pressable onPress={() => navigation.navigate("ProfileSheet")} style={styles.avatar} accessibilityRole="button" accessibilityLabel="Profile">
+          <Text style={styles.avatarText}>AJ</Text>
+        </Pressable>
+      ),
+      title: "Home",
+    });
+  }, [navigation]);
+  return (
+    <View style={{ flex: 1 }}>
+      <HomeScreen />
+      <FAB label="Log Daily" onPress={() => navigation.navigate("DailyTrackingSheet")} />
+    </View>
+  );
+}
+
+function TrackTabScreen({ navigation }: any) {
+  return (
+    <View style={{ flex: 1 }}>
+      <TrackScreen />
+      <FAB label="Log Daily" onPress={() => navigation.navigate("DailyTrackingSheet")} />
+    </View>
+  );
+}
+
+// Bottom tab navigator with the simplified IA (exactly 4 tabs)
 function MainTabs() {
   return (
     <Tab.Navigator screenOptions={{ headerShown: true }}>
-      {/* 1) Each Tab.Screen registers a tab and its component */}
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Insights" component={InsightsScreen} />
-      <Tab.Screen name="Daily" component={DailyTrackingScreen} />
-      <Tab.Screen name="Schedule" component={ScheduleScreen} />
+      <Tab.Screen name="Home" component={HomeTabScreen} />
+      <Tab.Screen name="Track" component={TrackTabScreen} />
       <Tab.Screen name="Inventory" component={InventoryScreen} />
-      <Tab.Screen name="Vitals" component={VitalsScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Insights" component={InsightsScreen} />
     </Tab.Navigator>
   );
 }
@@ -51,12 +77,33 @@ export default function App() {
 
   return (
     <NavigationContainer>
-      {/* 2) Stack contains Login/Signup and the tab navigator */}
+      {/* Root stack contains auth flow, tabs, and modal sheets */}
       <Stack.Navigator initialRouteName={initialRoute} screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Signup" component={SignupScreen} />
         <Stack.Screen name="MainTabs" component={MainTabs} />
+        <Stack.Screen name="ProfileSheet" component={ProfileSheet} options={{ presentation: 'fullScreenModal' }} />
+        <Stack.Screen name="DailyTrackingSheet" component={DailyTrackingSheet} options={{ presentation: 'fullScreenModal' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.s8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  avatarText: {
+    color: colors.textPrimary,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+});

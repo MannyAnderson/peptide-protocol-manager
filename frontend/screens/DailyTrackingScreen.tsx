@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert 
 import { Picker } from "@react-native-picker/picker";
 import Slider from "@react-native-community/slider";
 import { supabase } from "../src/utils/supabase";
+import { apiPost } from "../utils/api";
 
 type ScaleSelectorProps = {
   label: string;
@@ -122,17 +123,16 @@ export default function DailyTrackingScreen() {
       const peptide2_id = resolvePeptideId(pepIdx2);
       const peptide3_id = resolvePeptideId(pepIdx3);
 
-      // 2) Ensure user is signed in
-      const { data: userRes } = await supabase.auth.getUser();
-      const userId = userRes.user?.id;
-      if (!userId) {
+      // 2) Ensure user is signed in and obtain access token
+      const { data: sessionRes } = await supabase.auth.getSession();
+      const token = sessionRes.session?.access_token;
+      if (!token) {
         Alert.alert("Sign in required", "Please sign in to save your tracking.");
         return;
       }
 
-      // 3) Construct the row to insert
-      const row = {
-        user_id: userId,
+      // 3) Construct the payload for API (backend derives user_id from token)
+      const payload = {
         peptide1_id,
         peptide2_id,
         peptide3_id,
@@ -149,18 +149,31 @@ export default function DailyTrackingScreen() {
         notes,
       };
 
-      // 4) Insert the row into Supabase
-      const { error } = await supabase.from("daily_tracking").insert([row]);
-      if (error) throw error;
+      // 4) Call backend API
+      await apiPost("/api/v1/tracking", payload, token);
 
-      // 5) Notify the user
+      // 5) Notify the user and clear the form
       Alert.alert("Success", "Daily tracking saved.");
+      setPepIdx1(0);
+      setPepIdx2(1);
+      setPepIdx3(2);
+      setWeight(0);
+      setWaist(0);
+      setBpAM("");
+      setBpPM("");
+      setBodyFat(18);
+      setMuscleMass(42);
+      setRestingHR(62);
+      setEnergy(6);
+      setAppetite(5);
+      setPerformance(6);
+      setNotes("");
     } catch (err: any) {
       // eslint-disable-next-line no-console
       console.error("Failed to save daily tracking:", err?.message ?? err);
       Alert.alert(
         "Save failed",
-        "Could not save. Ensure Supabase table 'daily_tracking' exists with expected columns."
+        "Could not save. Please try again."
       );
     }
   }

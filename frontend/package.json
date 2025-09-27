@@ -9,6 +9,7 @@
     "@supabase/supabase-js": "^2.57.4",
     "expo": "^54.0.9",
     "expo-calendar": "^15.0.7",
+    "expo-health": "^0.0.0",
     "expo-notifications": "^0.32.11",
     "main": "node_modules/expo/AppEntry.js",
     "react": "19.1.0",

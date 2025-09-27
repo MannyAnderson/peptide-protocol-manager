@@ -1,196 +1,179 @@
-// Fetches "AI insights" from the backend for the signed-in user.
+// frontend/screens/InsightsScreen.tsx
 import React, { useCallback, useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, ActivityIndicator } from "react-native";
-import { supabase } from "../src/utils/supabase";
-import { apiPost } from "../src/api";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  RefreshControl,
+  TouchableOpacity,
+  ActivityIndicator,
+} from "react-native";
 
-type Insight = { title: string; detail?: string } | string;
+// ✅ Adjust these two paths if your files are in a different folder:
+import { supabase } from "../src/utils/supabase"; // or "../src/utils/supabase"
+import { apiPost } from "../utils/api";     // or "../src/api"
+
+type Insight = {
+  id: string;
+  title: string;
+  body: string;
+  created_at?: string;
+};
 
 export default function InsightsScreen() {
-  const [tips, setTips] = useState<Insight[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [insights, setInsights] = useState<Insight[]>([]);
+  const [range, setRange] = useState<"7d" | "30d" | "90d">("7d");
 
-  const fetchInsights = useCallback(async () => {
+  const load = useCallback(async () => {
     try {
-      // 1) Start loading and clear previous error
       setLoading(true);
-      setError(null);
-      // 2) Read the current auth session and extract the JWT token
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
-      // 3) Call the backend endpoint with the token for authorization
-      const res = await apiPost("/insights/generate", {}, token);
-      let items: Insight[] = [];
-      // 4) Normalize response shape into a simple array of tips
-      if (Array.isArray(res)) {
-        items = res;
-      } else if (res?.tips && Array.isArray(res.tips)) {
-        items = res.tips;
-      } else if (res?.suggestions && Array.isArray(res.suggestions)) {
-        items = res.suggestions;
-      } else if (typeof res === "object") {
-        items = Object.values(res);
-      }
-      // 5) Save to local state
-      setTips(items);
-    } catch (err: any) {
-      // 6) Show a friendly error
-      setError(err?.message ?? "Failed to load insights");
+      // If you have a backend endpoint for insights, call it here.
+      // Otherwise we’ll keep mock data so the UI renders.
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+
+      // Example call if your backend route exists:
+      // const res = await apiPost("/api/v1/insights/generate", {}, token);
+      // setInsights(res?.insights ?? []);
+
+      // Mock fallback (so the screen always renders)
+      setInsights([
+        {
+          id: "1",
+          title: "Energy trending up",
+          body: "Your energy scores improved this week vs last.",
+        },
+        {
+          id: "2",
+          title: "BP stable",
+          body: "No significant changes in BP over the past 7 days.",
+        },
+      ]);
+    } catch (e: any) {
+      console.warn("insights load failed:", e?.message);
     } finally {
-      // 7) Clear loading indicator
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchInsights();
-  }, [fetchInsights]);
+    load();
+  }, [load, range]);
 
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={fetchInsights} />}
+      refreshControl={
+        <RefreshControl refreshing={loading} onRefresh={load} />
+      }
     >
-      <View style={styles.topBar}>
-        <Text style={styles.title}>AI Insights</Text>
-        <View style={styles.actionsRow}>
-          <TouchableOpacity style={styles.secondaryButton} onPress={fetchInsights} activeOpacity={0.8}>
-            <Text style={styles.buttonText}>Refresh</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.primaryButton} onPress={fetchInsights} activeOpacity={0.8}>
-            <Text style={styles.primaryButtonText}>Generate Insights</Text>
-          </TouchableOpacity>
-        </View>
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>Insights</Text>
+        <TouchableOpacity onPress={() => { /* TODO: export action */ }}>
+          <Text style={styles.link}>Export</Text>
+        </TouchableOpacity>
       </View>
 
-      {loading && (
-        <View style={styles.loadingRow}>
-          <ActivityIndicator color="#93c5fd" />
-          <Text style={styles.loadingText}>Generating tips…</Text>
+      {/* Filter chips */}
+      <View style={styles.chipsRow}>
+        {(["7d", "30d", "90d"] as const).map((r) => (
+          <TouchableOpacity
+            key={r}
+            style={[
+              styles.chip,
+              range === r && styles.chipActive
+            ]}
+            onPress={() => setRange(r)}
+          >
+            <Text
+              style={[
+                styles.chipText,
+                range === r && styles.chipTextActive
+              ]}
+            >
+              {r.toUpperCase()}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Trend “cards” (placeholder content) */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Weight (trend)</Text>
+        <Text style={styles.cardBody}>178.8 → 178.2 → 178.0 (mock)</Text>
+      </View>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>BP (trend)</Text>
+        <Text style={styles.cardBody}>120/78 → 118/76 (mock)</Text>
+      </View>
+
+      {/* Insights list */}
+      {loading ? (
+        <ActivityIndicator size="small" />
+      ) : insights.length === 0 ? (
+        <View style={styles.empty}>
+          <Text style={styles.emptyTitle}>No tips yet</Text>
+          <Text style={styles.emptyBody}>
+            Log your daily data to unlock AI insights.
+          </Text>
         </View>
-      )}
-
-      {error && (
-        <View style={styles.errorCard}>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      )}
-
-      {tips.length === 0 && !loading && !error && (
-        <Text style={styles.emptyText}>No insights yet. Try refreshing.</Text>
-      )}
-
-      {tips.map((tip, idx) => {
-        const isObj = typeof tip === "object" && tip !== null;
-        const title = isObj ? (tip as any).title ?? "Insight" : String(tip);
-        const detail = isObj ? (tip as any).detail : undefined;
-        return (
-          <View key={idx} style={styles.card}>
-            <Text style={styles.cardTitle}>{title}</Text>
-            {detail ? <Text style={styles.cardDetail}>{detail}</Text> : null}
+      ) : (
+        insights.map((it) => (
+          <View key={it.id} style={styles.card}>
+            <Text style={styles.cardTitle}>{it.title}</Text>
+            <Text style={styles.cardBody}>{it.body}</Text>
+            <TouchableOpacity
+              onPress={() => {/* TODO: show “Why this tip?” details */}}
+            >
+              <Text style={styles.link}>Why this tip?</Text>
+            </TouchableOpacity>
           </View>
-        );
-      })}
+        ))
+      )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#0b1220",
-  },
-  content: {
-    padding: 16,
-    paddingBottom: 28,
-  },
-  topBar: {
+  container: { flex: 1, backgroundColor: "#fff" },
+  content: { padding: 16, paddingBottom: 40 },
+  headerRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  title: {
-    color: "#ffffff",
-    fontSize: 22,
-    fontWeight: "700",
-  },
-  actionsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  secondaryButton: {
-    backgroundColor: "#1f2937",
-    borderColor: "#374151",
+  title: { fontSize: 20, fontWeight: "700", color: "#111827" },
+  link: { color: "#2563EB", fontWeight: "600" },
+
+  chipsRow: { flexDirection: "row", gap: 8, marginVertical: 12 },
+  chip: {
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
+    borderColor: "#E5E7EB",
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: "#fff",
   },
-  buttonText: {
-    color: "#e5e7eb",
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  primaryButton: {
-    backgroundColor: "#2563eb",
-    borderColor: "#1d4ed8",
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  primaryButtonText: {
-    color: "#ffffff",
-    fontSize: 14,
-    fontWeight: "800",
-  },
-  loadingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-  },
-  loadingText: {
-    color: "#93c5fd",
-    marginLeft: 8,
-  },
-  errorCard: {
-    backgroundColor: "#7f1d1d",
-    borderColor: "#991b1b",
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 12,
-  },
-  errorText: {
-    color: "#fecaca",
-  },
-  emptyText: {
-    color: "#9ca3af",
-    marginBottom: 12,
-  },
+  chipActive: { backgroundColor: "#111827" },
+  chipText: { color: "#111827", fontWeight: "600" },
+  chipTextActive: { color: "#fff" },
+
   card: {
-    backgroundColor: "#111827",
-    borderColor: "#1f2937",
+    backgroundColor: "#FAFAFA",
     borderWidth: 1,
+    borderColor: "#E5E7EB",
     borderRadius: 12,
     padding: 12,
-    marginBottom: 10,
+    marginBottom: 12,
   },
-  cardTitle: {
-    color: "#f9fafb",
-    fontSize: 16,
-    fontWeight: "700",
-    marginBottom: 6,
-  },
-  cardDetail: {
-    color: "#e5e7eb",
-    fontSize: 13,
-  },
+  cardTitle: { fontSize: 16, fontWeight: "700", marginBottom: 4, color: "#111827" },
+  cardBody: { fontSize: 14, color: "#374151" },
+
+  empty: { alignItems: "center", paddingVertical: 24 },
+  emptyTitle: { fontSize: 16, fontWeight: "700", marginBottom: 4 },
+  emptyBody: { fontSize: 14, color: "#6B7280" },
 });
-
-

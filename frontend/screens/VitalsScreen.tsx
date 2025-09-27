@@ -1,6 +1,7 @@
 // Read-only vitals summary using mock data for now.
-import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
+import React, { useState } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from "react-native";
+import { requestPermissions, readLast7Days, type HealthDay } from "../lib/health";
 
 type MiniChartProps = {
   data: number[];
@@ -39,18 +40,28 @@ function MiniChart({ data, height = 56, width = 260, barWidth = 4, gap = 3 }: Mi
 }
 
 export default function VitalsScreen() {
-  const restingHR = 62;
-  const bp = { sys: 122, dia: 78 };
-  const weight = 181.2;
-  const bodyFat = 17.8;
-  const weight7d = [182.4, 182.0, 181.6, 181.9, 181.3, 181.1, 181.2];
+  const [days, setDays] = useState<HealthDay[] | null>(null);
+  const weight7d = (days || []).map((d) => (d.weightAvg ?? 0));
+  const restingHR = days?.[days.length - 1]?.heartRateAvg ?? 0;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.topBar}>
         <Text style={styles.title}>Vitals & Metrics</Text>
-        <TouchableOpacity style={styles.syncButton} onPress={() => {}} activeOpacity={0.8}>
-          <Text style={styles.syncButtonText}>Sync Devices</Text>
+        <TouchableOpacity
+          style={styles.syncButton}
+          onPress={async () => {
+            const ok = await requestPermissions();
+            if (!ok) {
+              Alert.alert("Permission", "Health permissions not granted or unavailable.");
+              return;
+            }
+            const res = await readLast7Days();
+            setDays(res);
+          }}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.syncButtonText}>Connect Apple Health</Text>
         </TouchableOpacity>
       </View>
 
@@ -60,23 +71,23 @@ export default function VitalsScreen() {
           <Text style={styles.cardValue}>{restingHR} bpm</Text>
         </View>
         <View style={styles.card}>
-          <Text style={styles.cardLabel}>Blood Pressure</Text>
-          <Text style={styles.cardValue}>{bp.sys}/{bp.dia} mmHg</Text>
+          <Text style={styles.cardLabel}>Steps (today)</Text>
+          <Text style={styles.cardValue}>{days?.[days.length - 1]?.steps ?? 0}</Text>
         </View>
         <View style={styles.card}>
           <Text style={styles.cardLabel}>Weight</Text>
-          <Text style={styles.cardValue}>{weight.toFixed(1)} lb</Text>
-        </View>
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>Body Fat%</Text>
-          <Text style={styles.cardValue}>{bodyFat.toFixed(1)}%</Text>
+          <Text style={styles.cardValue}>{weight7d.length ? weight7d[weight7d.length - 1].toFixed(1) : 0} lb</Text>
         </View>
       </View>
 
       <View style={styles.chartCard}>
         <Text style={styles.chartTitle}>Weight (7d)</Text>
-        <MiniChart data={weight7d} />
-        <Text style={styles.chartFooter}>{`${weight7d[0].toFixed(1)} → ${weight7d[weight7d.length - 1].toFixed(1)} lb`}</Text>
+        <MiniChart data={weight7d.length ? weight7d : [0]} />
+        {weight7d.length >= 2 ? (
+          <Text style={styles.chartFooter}>{`${weight7d[0].toFixed(1)} → ${weight7d[weight7d.length - 1].toFixed(1)} lb`}</Text>
+        ) : (
+          <Text style={styles.chartFooter}>No data</Text>
+        )}
       </View>
     </ScrollView>
   );
